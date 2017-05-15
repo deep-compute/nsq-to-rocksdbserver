@@ -11,8 +11,6 @@ import tornado.ioloop
 from threading import Thread, Lock
 
 class NSQTable(Table):
-    NAME = "nsq_dump"
-
     # TODO should we make pack and unpack json or msgpack ?
 
     # TODO revisit these options
@@ -63,6 +61,7 @@ class NSQRocksServer(RocksDBServer):
 
     def run(self):
         # rocksdb database that will store the nsq messages
+        NSQTable.NAME = self.args.db_name
         self.nsqtable = NSQTable(self.args.data_dir, self)
 
         # writes to the nsqtable happen in bulk periodically
@@ -78,7 +77,7 @@ class NSQRocksServer(RocksDBServer):
 
         self.nsq_reader = nsq.Reader(
             topic=self.args.nsq_topic,
-            channel="nsq_to_rocksdb",
+            channel=self.args.nsq_channel,
             nsqd_tcp_addresses=nsqd_tcp_addresses,
         )
         self.nsq_reader.set_message_handler(self.on_nsq_msg)
@@ -192,6 +191,12 @@ class NSQRocksServer(RocksDBServer):
         parser.add_argument("nsq_topic")
         parser.add_argument("--nsqd-tcp-address", default="localhost:4150",
             help="default: %(default)s",
+        )
+        parser.add_argument("--db-name", default="nsq_dump",
+            help="the name of the database/nsq table, default: %(default)s",
+        )
+        parser.add_argument("--nsq-channel", default="nsq_to_rocksdb",
+            help="the nsq channel name, default: %(default)s",
         )
 
     def close(self):
